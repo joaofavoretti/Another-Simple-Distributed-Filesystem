@@ -1,59 +1,18 @@
 version: '3'
 
 services:
-  metadata-server:
+  tracker:
     build:
-      context: ./metadata-server
+      context: ./tracker
       dockerfile: Dockerfile
     volumes:
-      - ./metadata-server:/app
-      - ./consts.json:/app/consts.json
+      - ./tracker:/app
+      - ./.disks/tracker:/disk
+      - ./operations.json:/app/operations.json
     networks:
       server-network:
         ipv4_address: "11.56.1.21"
-    hostname: "metadata-server"
-  
-  storage-node-1:
-    build:
-      context: ./storage-node
-      dockerfile: Dockerfile
-    depends_on:
-      - metadata-server
-    volumes:
-      - ./storage-node:/app
-      - ./consts.json:/app/consts.json
-    networks:
-      server-network:
-        ipv4_address: "11.56.1.41"
-    hostname: "storage-node-1"
-
-  storage-node-2:
-    build:
-      context: ./storage-node
-      dockerfile: Dockerfile
-    depends_on:
-      - metadata-server
-    volumes:
-      - ./storage-node:/app
-      - ./consts.json:/app/consts.json
-    networks:
-      server-network:
-        ipv4_address: "11.56.1.42"
-    hostname: "storage-node-2"
-  
-  storage-node-3:
-    build:
-      context: ./storage-node
-      dockerfile: Dockerfile
-    depends_on:
-      - metadata-server
-    volumes:
-      - ./storage-node:/app
-      - ./consts.json:/app/consts.json
-    networks:
-      server-network:
-        ipv4_address: "11.56.1.43"
-    hostname: "storage-node-3"
+    hostname: "tracker"
 
 networks:
   server-network:

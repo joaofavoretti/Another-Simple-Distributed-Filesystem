@@ -51,3 +51,11 @@ You will be prompted with a `>` character supposed to be used as a prompt to you
 - List all the files that are on the filesystem
 - `cat` the content of a file
 - Remove a file that is on the filesystem
+
+## Finishing
+
+To make sure that your group of docker applications and network has been properly finished, make sure to write the following command in the root directory of the project
+
+```
+docker-compose down
+```

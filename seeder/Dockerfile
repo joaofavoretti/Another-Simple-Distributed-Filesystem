@@ -8,4 +8,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 VOLUME /app
 
-CMD ["python", "storage_node.py"]
+CMD ["python", "seeder.py"]

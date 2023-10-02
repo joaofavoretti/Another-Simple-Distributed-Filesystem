@@ -1,12 +1,5 @@
 {
-    "metadata-server": {
-        "ipv4": "11.56.1.21",
-        "port": "5555"
-    },
-    "storage-nodes": {
-        "port": "5555"
-    },
-    "operation-codes": {
+    "operation": {
         "STORAGE_NODE_SIGN_IN_REQ": "STORAGE_NODE_SIGN_IN_REQ",
         "STORAGE_NODE_SIGN_IN_RES": "STORAGE_NODE_SIGN_IN_RES",
         "STORAGE_NODE_SIGN_OUT_REQ": "STORAGE_NODE_SIGN_OUT_REQ",

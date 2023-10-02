@@ -1,29 +1,13 @@
-Componentes
-===========
-
-Metadata Server: 
-- Recebe o interesse por baixar o arquivo X. Fala qual IP esta o arquivo X
-- Recebe o interesse por armazenar o arquivo X. Fala qual o IP pode armazenar o arquivo X
-- Recebe o interese por listar todos os arquivos armazenados. Checa a estrutura interna e envia o resultado
-
-- De tempos em tempos verificar a conectividade dos nos de armazenamento
-- De tempos em tempos cria backups de arquivos em outros nos
-
-Storage Nodes: 
-- Assim que rodar, tem que ser registrado no Metadata Server
-
-- Recebe o interesse por baixar o arquivo X. Fornece o conteudo do arquivo X
-- Cada no tem uma pasta local para armazenar os arquivos
-
-Client Application: 
-- Pode listar os arquivos, fazer o download ou upload de arquivos
+# Modules
 
 
-Request operation
-{
-    "operation": [STORAGE_NODE_REGISTRATION, STORAGE_NODE_REMOVAL, STORAGE_NODE_CONSULTAION]
-}
+## Client
 
-{
 
-}
+## Seeder
+
+
+
+## Tracker
+
+
