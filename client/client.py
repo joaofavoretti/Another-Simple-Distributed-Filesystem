@@ -71,11 +71,11 @@ class Client:
             command['object'].callHandler(command['string'])
 
     def helpHandler(self, commandString, commandRegex):
-        print("Help message\n")
+        print("Help message")
         print("Commands:")
         for commandObject in self.COMMANDS:
             print(f"{commandObject.label}:\t\t{commandObject.description}")
-    
+
     def exitHandler(self, commandString, commandRegex):
         print("Exiting...")
         exit()
