@@ -1,6 +1,10 @@
-# Simple-Distributed-Filesystem
+# SMILE: Superbly Managed Information for Ludicrous Efficiency
 
-This is a very simple example of how a Distributed Filesystem would work.
+This is a brand new idea I had to implement a distributed filesystem in a different way, derived from the first version accessible at [Simple Distributed Filesystem](https://github.com/joaofavoretti/Simple-Distributed-Filesystem).
+
+It is not an updated version from the other repository, otherwise I would've used that repository. The idea is to build something related but with a different approach.
+
+**IMPORTANT:** The following text was written for the first approach of a Distributed Filesystem. It will be updated as the architecture differs.
 
 It has three components:
 
