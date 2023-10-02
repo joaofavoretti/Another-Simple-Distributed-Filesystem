@@ -38,6 +38,12 @@ With that up and running, just run the Client App in another terminal window by 
 python3 client_app.py
 ```
 
+You can also use the bash script `run.sh` in that same directory with the following command:
+
+```
+./run.sh
+```
+
 You will be prompted with a `>` character supposed to be used as a prompt to your file system, just like you would with you were to use a linux terminal. With that, you can type commands to used any of the implemented features it has, like:
 
 - Upload files that you have locally to your remote filesystem
