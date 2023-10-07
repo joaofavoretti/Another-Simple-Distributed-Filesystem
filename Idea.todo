@@ -1,13 +1,14 @@
 # Modules
 
 
-## Client
+## Message Protocol: Client Request to Tracker
 
+{
+    operation: ["STATUS"]
+}
 
-## Seeder
+## Message Protocol: Tracker Reply to Client
 
-
-
-## Tracker
-
-
+{
+    status: 'OK' | 'FAIL'
+}

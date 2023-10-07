@@ -1,5 +1,7 @@
 import zmq
 import re
+import pickle
+import json
 
 class TrackerHandler:
     def __init__(self):
@@ -56,7 +58,7 @@ class Command:
 class Client:
 
     def __init__(self):
-        # self.tracker = TrackerHandler()
+        self.tracker = TrackerHandler()
 
         self.COMMANDS = [
             Command(label=["help", "h"], regexes=[r"^help$", r"^h$"], description="Show this help message", handler=self.helpHandler),
@@ -79,6 +81,7 @@ class Client:
     def exitHandler(self, commandString, commandRegex):
         print("Exiting...")
         exit()
+
 
 def main():
     client = Client()

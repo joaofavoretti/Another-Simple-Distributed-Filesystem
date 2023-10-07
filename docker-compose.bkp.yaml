@@ -1,0 +1,67 @@
+version: '3'
+
+services:
+  tracker:
+    build:
+      context: ./tracker
+      dockerfile: Dockerfile
+    volumes:
+      - ./tracker:/app
+      - ./.disks/tracker:/disk
+      - ./operations.json:/app/operations.json
+    networks:
+      server-network:
+        ipv4_address: "11.56.1.21"
+    hostname: "tracker"
+  
+  seeder-1:
+    build:
+      context: ./seeder
+      dockerfile: Dockerfile
+    depends_on:
+      - tracker
+    volumes:
+      - ./seeder:/app
+      - ./.disks/seeder-1:/disk
+      - ./operations.json:/app/operations.json
+    networks:
+      server-network:
+        ipv4_address: "11.56.1.41"
+    hostname: "seeder-1"
+
+  seeder-2:
+    build:
+      context: ./seeder
+      dockerfile: Dockerfile
+    depends_on:
+      - tracker
+    volumes:
+      - ./seeder:/app
+      - ./.disks/seeder-2:/disk
+      - ./operations.json:/app/operations.json
+    networks:
+      server-network:
+        ipv4_address: "11.56.1.42"
+    hostname: "seeder-2"
+
+  seeder-3:
+    build:
+      context: ./seeder
+      dockerfile: Dockerfile
+    depends_on:
+      - tracker
+    volumes:
+      - ./seeder:/app
+      - ./.disks/seeder-3:/disk
+      - ./operations.json:/app/operations.json
+    networks:
+      server-network:
+        ipv4_address: "11.56.1.43"
+    hostname: "seeder-3"
+
+networks:
+  server-network:
+    ipam:
+      driver: default
+      config:
+        - subnet: "11.56.1.0/24"
