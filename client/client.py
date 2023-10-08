@@ -2,29 +2,38 @@ import zmq
 import re
 import pickle
 import json
+from utils import OperationRequest, Response, TrackerHandler
 
-class TrackerHandler:
-    def __init__(self):
-        self.context = zmq.Context()
+TRACKER_OPERATIONS = {
+    'PING': 'PING'
+}
 
-        self.sock = self.context.socket(zmq.REQ)
-        self.sock.bind(f"tcp://11.56.1.21:5555")
+class EmptyException(Exception):
+    pass
 
-class CommandParser:
+
+
+class CommandRequestHandler:
+    def __init__(self, object, string):
+        self.object = object
+        self.string = string
+
+class CommandHandler:
     PROMPT_STYLE = '\033[1;32m$ \033[0m'
 
     def __init__(self):
         pass
 
     def parseCommand(self, commandString, clientCommands):
+        if not commandString:
+            # Raise empty exception
+            raise EmptyException('Empty command string')
+        
         for commandObject in clientCommands:
             for regex in commandObject.regexes:
                 match = re.search(regex, commandString)
                 if match:
-                    return {
-                        "object": commandObject,
-                        "string": commandString
-                    }
+                    return CommandRequestHandler(object=commandObject, string=commandString)
 
         raise Exception(commandString.split()[0])
 
@@ -32,12 +41,11 @@ class CommandParser:
         while True:
             command = input(self.PROMPT_STYLE)
             
-            if not command:
-                continue
-            
             try:
                 commandObject = self.parseCommand(command, clientCommands)
                 return commandObject
+            except EmptyException as e:
+                continue
             except Exception as e:
                 commandLabel = e.args[0]
                 print(f'Command not found: {commandLabel}')
@@ -58,19 +66,22 @@ class Command:
 class Client:
 
     def __init__(self):
-        self.tracker = TrackerHandler()
+        self.context = zmq.Context()
+
+        self.trackerHandler = TrackerHandler(self.context)
 
         self.COMMANDS = [
             Command(label=["help", "h"], regexes=[r"^help$", r"^h$"], description="Show this help message", handler=self.helpHandler),
             Command(label=["exit", "e"], regexes=[r"^exit$", r"^e$"], description="Exit the client", handler=self.exitHandler),
+            Command(label=["ping"], regexes=[r"^ping$"], description="Ping the Tracker", handler=self.pingHandler),
         ]
 
     def run(self):
-        parser = CommandParser()
+        comHandler = CommandHandler()
 
         while True:
-            command = parser.getNextCommand(self.COMMANDS)
-            command['object'].callHandler(command['string'])
+            command = comHandler.getNextCommand(self.COMMANDS)
+            command.object.callHandler(command.string)
 
     def helpHandler(self, commandString, commandRegex):
         print("Help message")
@@ -81,6 +92,14 @@ class Client:
     def exitHandler(self, commandString, commandRegex):
         print("Exiting...")
         exit()
+
+    def pingHandler(self, commandString, commandRegex):
+        req = OperationRequest(operation=TRACKER_OPERATIONS['PING'], args={"message": "Hello Tracker"})
+        self.trackerHandler.send(req.export())
+        res = self.trackerHandler.recv()
+        res = Response(**pickle.loads(res))
+        if res.status == 200:
+            print(res.message)
 
 
 def main():

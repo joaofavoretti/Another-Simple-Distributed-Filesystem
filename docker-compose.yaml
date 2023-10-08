@@ -8,11 +8,56 @@ services:
     volumes:
       - ./tracker:/app
       - ./.disks/tracker:/disk
-      - ./operations.json:/app/operations.json
+      - ./utils.py:/app/utils.py
     networks:
       server-network:
         ipv4_address: "11.56.1.21"
     hostname: "tracker"
+  
+  seeder-1:
+    build:
+      context: ./seeder
+      dockerfile: Dockerfile
+    depends_on:
+      - tracker
+    volumes:
+      - ./seeder:/app
+      - ./.disks/seeder-1:/disk
+      - ./utils.py:/app/utils.py
+    networks:
+      server-network:
+        ipv4_address: "11.56.1.41"
+    hostname: "seeder-1"
+
+  seeder-2:
+    build:
+      context: ./seeder
+      dockerfile: Dockerfile
+    depends_on:
+      - tracker
+    volumes:
+      - ./seeder:/app
+      - ./.disks/seeder-2:/disk
+      - ./utils.py:/app/utils.py
+    networks:
+      server-network:
+        ipv4_address: "11.56.1.42"
+    hostname: "seeder-2"
+
+  seeder-3:
+    build:
+      context: ./seeder
+      dockerfile: Dockerfile
+    depends_on:
+      - tracker
+    volumes:
+      - ./seeder:/app
+      - ./.disks/seeder-3:/disk
+      - ./utils.py:/app/utils.py
+    networks:
+      server-network:
+        ipv4_address: "11.56.1.43"
+    hostname: "seeder-3"
 
 networks:
   server-network:
