@@ -3,6 +3,7 @@ import pickle
 import netifaces
 import json
 import hashlib
+import datetime
 
 def getIpAddress():
     """
@@ -21,7 +22,7 @@ class File:
     def __init__(self, name, size, lastModified):
         self.name = name
         self.size = size
-        self.lastModified = lastModified
+        self.lastModified = datetime.datetime.fromtimestamp(lastModified).strftime('%H:%M')
 
 class Response:
 
@@ -64,14 +65,14 @@ class OperationRequestHandler:
         self.args = args
 
 class OperationHandler:
-    def __init__(self, context):
+    def __init__(self, context, timeoutProcedure=None):
 
         self.context = context
+        self.timeoutProcedure = timeoutProcedure
 
         self.sock = self.context.socket(zmq.REP)
         self.sock.bind(f"tcp://{getIpAddress()}:5555")
-
-        # sock.setsockopt(zmq.RCVTIMEO, 5000)
+        # self.sock.setsockopt(zmq.RCVTIMEO, 5000)
 
     def send(self, payload):
         return self.sock.send(payload)
@@ -95,14 +96,18 @@ class OperationHandler:
 
                 return OperationRequestHandler(object=availableOperation, args=operationRequest.args)
 
-        raise Exception('Operation not found')
+        raise Exception('Operation not found or invalid arguments')
     
     def getNextOperation(self, trackerOperations)->OperationRequestHandler:
         while True:
-            operationMessage = self.recv()
             
             try:
+                operationMessage = self.recv()
                 operationReqHandler = self.parseOperation(operationMessage, trackerOperations)
+            except zmq.error.Again:
+                if self.timeoutProcedure:
+                    self.timeoutProcedure()
+                continue
             except Exception as e:
                 res = Response(status=500, message=e.args[0])
                 self.send(res.export())

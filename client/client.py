@@ -10,7 +10,13 @@ from utils import OperationRequest, Response, TrackerHandler, SeederHandler, has
 TRACKER_OPERATIONS = {
     'PING': 'PING',
     'LIST': 'LIST',
-    'GET': 'GET'
+    'GET': 'GET',
+    'UPLOAD': 'UPLOAD'
+}
+
+SEEDER_OPERATIONS = {
+    'GET': 'GET',
+    'UPLOAD': 'UPLOAD'
 }
 
 class EmptyException(Exception):
@@ -80,7 +86,7 @@ class Client:
             Command(label=["ping"], regexes=[r"^ping$"], description="Ping the Tracker", handler=self.pingHandler),
             Command(label=["list [-l]", "ls [-l]"], regexes=[r"^list(\s+-l)?$", r"^ls(\s+-l)?$"], description="List all files in the filesystem", handler=self.listHandler),
             Command(label=["get <filehash>"], regexes=[r"^get\s+([a-f0-9]{5})$"], description="Download a file", handler=self.getHandler),
-            Command(label=["upload <filePath>"], regexes=[r"^upload\s+([a-zA-Z0-9_\-\.]+)$"], description="Upload a file", handler=self.uploadHandler)
+            Command(label=["upload <filePath>"], regexes=[r"^upload\s+(\.?(/?[a-zA-Z0-9\-_]+)+(\.[a-zA-Z0-9]+)?)$"], description="Upload a file", handler=self.uploadHandler)
         ]
 
     def run(self):
@@ -178,7 +184,7 @@ class Client:
         # Send the requests to the seeders
         for seeder in seederRequestInformation:
             seederHandler = SeederHandler(self.context, seeder['seeder'])
-            req = OperationRequest(operation=TRACKER_OPERATIONS['GET'], args={"fileHash": fileHash, "offset": seeder['offset'], "count": seeder['count']})
+            req = OperationRequest(operation=SEEDER_OPERATIONS['GET'], args={"fileHash": fileHash, "offset": seeder['offset'], "count": seeder['count']})
             seederHandler.send(req.export())
 
             res = seederHandler.recv()
@@ -197,32 +203,48 @@ class Client:
 
         print(f"Downloaded file {outputFilename}")
 
-    def uploadHandle(self, commandString, commandRegex):
+    def uploadHandler(self, commandString, commandRegex):
         match = re.search(commandRegex, commandString)
         filePath = match.group(1)
-        fileHash = hash(filePath)
 
         if not os.path.exists(filePath):
             print(f"File {filePath} does not exist")
             return
+        
+        fileHash = hash(filePath)[:5]
+        fileSize = os.path.getsize(filePath)
+        fileLastModified = os.path.getmtime(filePath)
 
-        # Send the file to the tracker
+        file = File(name=os.path.basename(filePath), size=fileSize, lastModified=fileLastModified)
+
+        req = OperationRequest(operation=TRACKER_OPERATIONS['UPLOAD'], args={"fileHash": fileHash, "fileSize": fileSize})
+        self.trackerHandler.send(req.export())
+
+        res = self.trackerHandler.recv()
+        res = Response(**pickle.loads(res))
+
+        if res.status != 200:
+            print(res.message)
+            return
+
+        seederAddress = res.message['address']
+
         with open(filePath, 'rb') as f:
             fileData = f.read()
-            fileSize = len(fileData)
-            lastModified = os.path.getmtime(filename)
+            f.close()
 
-            req = OperationRequest(operation=TRACKER_OPERATIONS['UPLOAD'], args={"fileHash": fileHash, "fileName": filename, "size": fileSize, "lastModified": lastModified})
-            self.trackerHandler.send(req.export())
+        seederHandler = SeederHandler(self.context, seederAddress)
+        req = OperationRequest(operation=SEEDER_OPERATIONS['UPLOAD'], args={"fileHash": fileHash, "file":file, "fileData": fileData})
+        seederHandler.send(req.export())
 
-            res = self.trackerHandler.recv()
-            res = Response(**pickle.loads(res))
+        res = seederHandler.recv()
+        res = Response(**pickle.loads(res))
 
-            if res.status != 200:
-                print(res.message)
-                return
-
-            print(f"File {filename} uploaded successfully")
+        if res.status != 200:
+            print(res.message)
+            return
+        
+        print(f"Uploaded file {filePath}")
 
 def disable_interruption(signal, frame):
     print()

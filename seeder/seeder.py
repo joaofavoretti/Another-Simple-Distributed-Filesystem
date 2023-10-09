@@ -5,7 +5,9 @@ import datetime
 from utils import OperationHandler, Operation, Response, TrackerHandler, getIpAddress, OperationRequest, File, hash
 
 TRACKER_OPERATIONS = {
-    'SEEDER_REGISTER': 'SEEDER_REGISTER'
+    'SEEDER_REGISTER': 'SEEDER_REGISTER',
+    'SEEDER_UPDATE': 'SEEDER_UPDATE',
+    'SEEDER_SIGNOUT': 'SEEDER_SIGNOUT',
 }
 
 HASH_SIZE = 5
@@ -20,7 +22,8 @@ class Seeder:
 
         self.OPERATIONS = [
             Operation(operation='PING', args=["message"], handler=self.pingHandler),
-            Operation(operation='GET', args=["fileHash", "offset", "count"], handler=self.getHandler)
+            Operation(operation='GET', args=["fileHash", "offset", "count"], handler=self.getHandler),
+            Operation(operation='UPLOAD', args=["fileHash", "file", "fileData"], handler=self.uploadHandler)
         ]
 
         self.diskDirectory = '/disk'
@@ -29,12 +32,19 @@ class Seeder:
 
         self.registerToTracker()
 
+    def __del__(self):
+        req = OperationRequest(operation=TRACKER_OPERATIONS['SEEDER_SIGNOUT'], args={"address": getIpAddress()})
+        self.trackerHandler.send(req.export())
+
+        res = self.trackerHandler.recv()
+        res = Response(**pickle.loads(res))
+
     def registerToTracker(self):        
         
         self.localFiles = {
             hash(os.path.join(self.diskDirectory, filename))[:HASH_SIZE]: File(name=filename, 
                                                                    size=os.path.getsize(os.path.join(self.diskDirectory, filename)), 
-                                                                   lastModified=datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(self.diskDirectory, filename))).strftime('%H:%M'))
+                                                                   lastModified=os.path.getmtime(os.path.join(self.diskDirectory, filename)))
             for filename in os.listdir(self.diskDirectory)}
         
         req = OperationRequest(operation=TRACKER_OPERATIONS['SEEDER_REGISTER'], args={"address": getIpAddress(), "files": self.localFiles})
@@ -42,7 +52,6 @@ class Seeder:
         
         res = self.trackerHandler.recv()
         res = Response(**pickle.loads(res))
-        print(res.message)
 
         if res.status != 200:
             exit()
@@ -89,6 +98,56 @@ class Seeder:
                 "data": data
             })
             self.opHandler.send(res.export())
+
+    def uploadHandler(self, args):
+        fileHash = args.get('fileHash')
+        file = args.get('file')
+        fileData = args.get('fileData')
+
+        if fileHash in self.localFiles:
+            res = Response(status=200, message=f'File already exists')
+            self.opHandler.send(res.export())
+            return
+
+        if type(fileData) != bytes:
+            res = Response(status=400, message=f'Invalid file data type')
+            self.opHandler.send(res.export())
+            return
+        
+        if type(file) != File:
+            res = Response(status=400, message=f'Invalid file type')
+            self.opHandler.send(res.export())
+            return
+
+        if len(fileData) != file.size:
+            res = Response(status=400, message=f'Invalid file size')
+            self.opHandler.send(res.export())
+            return
+
+        # Save the data to disk
+        with open(os.path.join(self.diskDirectory, file.name), 'wb') as f:
+            f.write(fileData)
+            f.close()
+
+        file.lastModified = datetime.datetime.now().strftime('%H:%M')
+
+        self.localFiles[fileHash] = file
+        
+        res = Response(status=200, message=f'File uploaded')
+        self.opHandler.send(res.export())
+
+        # Update seeder on the Tracker
+        req = OperationRequest(operation=TRACKER_OPERATIONS['SEEDER_UPDATE'], args={"address": getIpAddress(), "files": self.localFiles})
+        self.trackerHandler.send(req.export())
+
+        res = self.trackerHandler.recv()
+        res = Response(**pickle.loads(res))
+
+        # There is no much to doo actually. Could raise an error though
+        if res.status != 200:
+            return
+
+
 
 def main():
     seeder = Seeder()
