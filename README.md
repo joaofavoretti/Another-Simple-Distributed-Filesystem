@@ -2,9 +2,7 @@
 
 ## Description
 
-This is a brand new idea I had to implement a distributed filesystem in a different way, derived from the first version accessible at [Simple Distributed Filesystem](https://github.com/joaofavoretti/Simple-Distributed-Filesystem).
-
-It is not an updated version from the other repository, otherwise I would've used that repository. The idea is to build something related but with a different approach.
+This is project aimed to developed an infrastructure to host a distributed File-System. The idea is to provide redundancies and speed on the upload or download of files stores in the remote servers. Besides that, even though the system was thought to run on separate computers, I also created a client CLI application able to communicate with the created protocols to provide the well-known feeling of a "Single Cloud Server". 
 
 ![Logo](assets/logo-1.png)
 
@@ -16,40 +14,38 @@ It is not an updated version from the other repository, otherwise I would've use
 
 As it is an example of a distributed computer program, each part of the program is supposed to run in a different node of a cluster. In order to simulate that behavior locally in a single computer, it was used Docker Compose to spawn different containers, each of them with a single module of the software.
 
-The Docker Compose creates a simple internal network `11.56.1.0/24` and sets the Metadata Server at the address `11.56.1.21` arbitrarily. Besides that, it spawns three Storage Nodes at the address `11.56.1.41`, `11.56.1.42`, `11.56.1.43`. As it is a Distributed Systems software, the number of Storage Nodes can be as high as you can think, it is 3 by default to avoid spending too much resources locally. Also, as each Storage Node would have its own filesystem to really store the files, the docker compose solution to this is to create a directory in the main operating system for each of the containers to use (they are called: `storage-node-1`, `storage-node-2` and `storage-node-3`).
+The Docker Compose creates a simple internal network `11.56.1.0/24` and sets the Tracker Server at the address `11.56.1.21` arbitrarily. Besides that, it spawns three Seeder Nodes at the address `11.56.1.41`, `11.56.1.42`, `11.56.1.43`. As it is a Distributed Computing software, the number of Seeder Nodes can be as high as you can think, it is 3 by default to avoid spending too much local resources. Also, as each Seeder Node would have its own filesystem to really store the files, the docker compose solution to this is to create a `/disk` directory in the main operating system for each of the containers to use (All those directories are binded to the respective folders in the `.disks` directory).
 
-It is easy to run it in a single command with Docker Compose. Assuming you have it installed (if you need any reference, take [this](https://www.youtube.com/watch?v=DM65_JyGxCo) video), just run the command.
+It is easy to run it in a single command with Docker Compose. Assuming you have it installed (if you need any reference, take [this](https://www.youtube.com/watch?v=DM65_JyGxCo) video), just run the command to run the remote filesystem.
 
 ```
 docker-compose up
 ```
 
-With that up and running, just run the Client App in another terminal window by entering in the `client-app` directory, installing the required libraries placed on the `requirements.txt` file, and running it.
+With that up and running, just run the Client App in another terminal window by entering in the `client` directory, installing the required libraries placed on the `requirements.txt` file, and running it.
 
 ```
-python3 client_app.py
+run.sh
 ```
 
-You can also use the bash script `run.sh` in that same directory with the following command:
+You will be prompted with a `$` character supposed to be used as a prompt to your file system, just like you would with you were to use a linux terminal. You can be very free to use it, do not be scared of typing some undefined command and crashing the applications. It has built-in sintax error checking, so the only way to exit it is by typing `exit`.
 
-```
-./run.sh
-```
+One thing though is that it does not have a Command History features (yes, I am aware that it ruins the experience), but I am working on it.
 
-You will be prompted with a `>` character supposed to be used as a prompt to your file system, just like you would with you were to use a linux terminal. With that, you can type commands to used any of the implemented features it has, like:
+Besides that, you can access the main supported features by running the command `help`. But it is too much to ask, there are some functionalities already implemented.
 
-- Upload files that you have locally to your remote filesystem
-- Download files that you have uploaded to your computer
-- List all the files that are on the filesystem
-- `cat` the content of a file
-- Remove a file that is on the filesystem
+- Upload files
+- Download files
 
 ## Closing everything
 
-To make sure that your group of docker applications and network has been properly finished, make sure to write the following command in the root directory of the project
+To make sure that your group of docker applications and network has been properly finished, make sure to write the following command in the root directory of the project.
 
 ```
 docker-compose down
 ```
+
+Be smart, you can just `CTRL+C` your docker compose window and run it again. You will only need that command (As far as I am aware) if you want to take down the network interface created to host the group of containers.
+
 
 ![Video](assets/OFFSHORE.gif)
