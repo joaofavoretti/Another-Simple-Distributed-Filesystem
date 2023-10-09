@@ -51,3 +51,5 @@ To make sure that your group of docker applications and network has been properl
 ```
 docker-compose down
 ```
+
+![Video](assets/OFFSHORE.gif)
