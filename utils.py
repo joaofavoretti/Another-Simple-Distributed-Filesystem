@@ -2,6 +2,7 @@ import zmq
 import pickle
 import netifaces
 import json
+import hashlib
 
 def getIpAddress():
     """
@@ -123,7 +124,6 @@ class TrackerHandler:
         self.context = context
 
         self.sock = self.context.socket(zmq.REQ)
-        # self.sock.connect(f"tcp://12.56.1.21:5555")
         self.sock.connect(f"tcp://11.56.1.21:5555")
 
     def send(self, payload):
@@ -131,3 +131,26 @@ class TrackerHandler:
     
     def recv(self):
         return self.sock.recv()
+    
+class SeederHandler:
+    def __init__(self, context, address):
+        self.context = context
+
+        self.sock = self.context.socket(zmq.REQ)
+        self.sock.connect(f"tcp://{address}:5555")
+
+    def send(self, payload):
+        return self.sock.send(payload)
+    
+    def recv(self):
+        return self.sock.recv()
+    
+# Calculate that hash from a file path "fpath"
+def hash(fpath):
+    hasher = hashlib.md5()
+
+    with open(fpath, 'rb') as f:
+        hasher.update(f.read())
+
+    file_hash = hasher.hexdigest()
+    return file_hash

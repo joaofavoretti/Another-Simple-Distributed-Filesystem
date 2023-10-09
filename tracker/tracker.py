@@ -37,7 +37,8 @@ class Tracker:
         self.OPERATIONS = [
             Operation(operation='PING', args=["message"], handler=self.pingHandler),
             Operation(operation='SEEDER_REGISTER', args=["address", "files"], handler=self.seederRegisterHandler),
-            Operation(operation='LIST', args=[], handler=self.listHandler)
+            Operation(operation='LIST', args=[], handler=self.listHandler),
+            Operation(operation='GET', args=["fileHash"], handler=self.getHandler)
         ]
     
     def run(self)->None:
@@ -71,6 +72,34 @@ class Tracker:
                     files[fileHash] = file
         
         res = Response(status=200, message=files)
+        self.opHandler.send(res.export())
+
+    def getHandler(self, args):
+        fileHash = args.get('fileHash')
+        
+        fileInformation = {
+            'fileHash': fileHash,
+            'fileName': None,
+            'size': None,
+            'seeders': []
+        }
+
+        for seeder in self.seeders:
+            if fileHash in seeder.files:
+                fileInformation['seeders'].append(seeder.address)
+                
+                if not fileInformation['fileName']:
+                    fileInformation['fileName'] = seeder.files[fileHash].name
+
+                if not fileInformation['size']:
+                    fileInformation['size'] = seeder.files[fileHash].size
+        
+        if len(fileInformation['seeders']) == 0:
+            res = Response(status=404, message=f'File not found')
+            self.opHandler.send(res.export())
+            return
+        
+        res = Response(status=200, message=fileInformation)
         self.opHandler.send(res.export())
 
 def main():
