@@ -16,6 +16,12 @@ def getIpAddress():
         if netifaces.AF_INET in addrs:
             return addrs[netifaces.AF_INET][0]["addr"]
 
+class File:
+    def __init__(self, name, size, lastModified):
+        self.name = name
+        self.size = size
+        self.lastModified = lastModified
+
 class Response:
 
     def __init__(self, status, message):
@@ -62,7 +68,7 @@ class OperationHandler:
         self.context = context
 
         self.sock = self.context.socket(zmq.REP)
-        self.sock.bind(f"tcp://192.168.0.13:5555")
+        self.sock.bind(f"tcp://{getIpAddress()}:5555")
 
         # sock.setsockopt(zmq.RCVTIMEO, 5000)
 
@@ -72,24 +78,36 @@ class OperationHandler:
     def recv(self):
         return self.sock.recv()
 
-    def parseOperation(self, operationMessage, trackerOperations)->OperationRequestHandler:
+    def parseOperation(self, operationMessage, availableOperations)->OperationRequestHandler:
         operationDict = pickle.loads(operationMessage)
         
         # That command is so cool. Used to validate a Operation Message
         operationRequest = OperationRequest(**operationDict)
 
-        for trackerOperation in trackerOperations:
-            if trackerOperation.operation == operationRequest.operation:
+        for availableOperation in availableOperations:
+            if availableOperation.operation == operationRequest.operation:
                 
                 # That will allow creating operations with the same name but with different args
-                for arg in trackerOperation.args:
+                for arg in availableOperation.args:
                     if not arg in operationRequest.args:
                         continue
 
-                return OperationRequestHandler(object=trackerOperation, args=operationRequest.args)
+                return OperationRequestHandler(object=availableOperation, args=operationRequest.args)
 
         raise Exception('Operation not found')
+    
+    def getNextOperation(self, trackerOperations)->OperationRequestHandler:
+        while True:
+            operationMessage = self.recv()
+            
+            try:
+                operationReqHandler = self.parseOperation(operationMessage, trackerOperations)
+            except Exception as e:
+                res = Response(status=500, message=e.args[0])
+                self.send(res.export())
 
+            return operationReqHandler
+        
 class Operation:
 
     def __init__(self, operation, args, handler):
@@ -106,7 +124,7 @@ class TrackerHandler:
 
         self.sock = self.context.socket(zmq.REQ)
         # self.sock.connect(f"tcp://12.56.1.21:5555")
-        self.sock.connect(f"tcp://192.168.0.13:5555")
+        self.sock.connect(f"tcp://11.56.1.21:5555")
 
     def send(self, payload):
         return self.sock.send(payload)

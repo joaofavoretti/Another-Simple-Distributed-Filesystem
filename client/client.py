@@ -5,7 +5,8 @@ import json
 from utils import OperationRequest, Response, TrackerHandler
 
 TRACKER_OPERATIONS = {
-    'PING': 'PING'
+    'PING': 'PING',
+    'LIST': 'LIST'
 }
 
 class EmptyException(Exception):
@@ -61,7 +62,7 @@ class Command:
         for regex in self.regexes:
             match = re.search(regex, commandString)
             if match:
-                return self.handler(commandString, self.regexes)
+                return self.handler(commandString, regex)
 
 class Client:
 
@@ -74,6 +75,7 @@ class Client:
             Command(label=["help", "h"], regexes=[r"^help$", r"^h$"], description="Show this help message", handler=self.helpHandler),
             Command(label=["exit", "e"], regexes=[r"^exit$", r"^e$"], description="Exit the client", handler=self.exitHandler),
             Command(label=["ping"], regexes=[r"^ping$"], description="Ping the Tracker", handler=self.pingHandler),
+            Command(label=["list [-l]", "ls [-l]"], regexes=[r"^list(\s+-l)?$", r"^ls(\s+-l)?$"], description="List all files in the filesystem", handler=self.listHandler),
         ]
 
     def run(self):
@@ -101,6 +103,28 @@ class Client:
         if res.status == 200:
             print(res.message)
 
+    def listHandler(self, commandString, commandRegex):
+        # Using the re match to check if the -l flag is present
+        match = re.search(commandRegex, commandString)
+
+        longListing = True if match and match.group(1) else False
+        
+        req = OperationRequest(operation=TRACKER_OPERATIONS['LIST'], args={})
+        self.trackerHandler.send(req.export())
+
+        res = self.trackerHandler.recv()
+        res = Response(**pickle.loads(res))
+
+        if res.status != 200:
+            print(res.message)
+
+        # Message is a dictionary of {filehash: File}. Print it nicely
+        if longListing:
+            for fileHash, file in res.message.items():
+                print(f"{file.size}\t{file.lastModified}\t{fileHash[:5]} {file.name}")
+        else:
+            for fileHash, file in res.message.items():
+                print(f"({fileHash[:5]}) {file.name} \t")
 
 def main():
     client = Client()
