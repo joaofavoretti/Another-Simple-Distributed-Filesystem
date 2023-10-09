@@ -6,6 +6,8 @@ This is a brand new idea I had to implement a distributed filesystem in a differ
 
 It is not an updated version from the other repository, otherwise I would've used that repository. The idea is to build something related but with a different approach.
 
+![Logo](assets/logo-1.png)
+
 ## Name suggestions
 - Overly Friendly File System Sincerely that Honors Every Request Effortlessly (OFFSHORE).
 - Our Filing Framework Seems Highly Optimistic, Rarely Encounters Glitches
