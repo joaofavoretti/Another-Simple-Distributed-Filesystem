@@ -3,7 +3,9 @@ import json
 import netifaces
 import pickle
 import re
-from utils import OperationHandler, Operation, Response, OperationRequest, getIpAddress, SeederHandler
+import heapq
+from math import *
+from utils import OperationHandler, Operation, Response, OperationRequest, getIpAddress, SeederHandler, TRACKER_OPERATIONS
 
 class Seeder:
     def __init__(self, address, files):
@@ -36,10 +38,10 @@ class Tracker:
 
         self.OPERATIONS = [
             Operation(operation='PING', args=["message"], handler=self.pingHandler),
-            Operation(operation='SEEDER_REGISTER', args=["address", "files"], handler=self.seederRegisterHandler),
             Operation(operation='LIST', args=[], handler=self.listHandler),
             Operation(operation='GET', args=["fileHash"], handler=self.getHandler),
             Operation(operation='UPLOAD', args=["fileHash", "fileSize"], handler=self.uploadHandler),
+            Operation(operation='SEEDER_REGISTER', args=["address", "files"], handler=self.seederRegisterHandler),
             Operation(operation='SEEDER_UPDATE', args=["address", "files"], handler=self.seederUpdateHandler),
             Operation(operation='SEEDER_SIGNOUT', args=["address"], handler=self.seederSignoutHandlers)
         ]
@@ -63,12 +65,36 @@ class Tracker:
                 res = Response(**pickle.loads(res))
             except zmq.error.Again:
                 self.seeders.remove(seeder)
-                print(f'Seeder {seeder.address} timed out', flush=True)
+                print(f'Seeder {seeder.address} is offline', flush=True)
                 continue
 
+    def seedersFileBalancing(self):
+        # fileSeeders {fileHash: [seeder1, seeder2, ...], ...}
+        fileSeeders = {}
+        for seeder in self.seeders:
+            for fileHash in seeder.files:
+                if fileHash not in fileSeeders:
+                    fileSeeders[fileHash] = []
+                fileSeeders[fileHash].append(seeder.address)
+        
+        # For each file if less than ceil(log(n)) seeders have it, distribute the file to a seeders that don't have it
+        for fileHash, seeders in fileSeeders.items():
+            requiredSeedersAmount = ceil(log(len(self.seeders)))
+            currentSeedersAmount = len(seeders)
+            
+            if currentSeedersAmount >= requiredSeedersAmount:
+                continue
+            
+            # Find requiredSeedersAmount - currentSeedersAmount seeders that dont have the file and has the least amount of file data (based on file.size)
+            availableSeeders = heapq.nsmallest(requiredSeedersAmount - currentSeedersAmount, self.seeders, key=lambda seeder: sum([file.size for file in seeder.files.values()]))
+
+            for _ in range(requiredSeedersAmount - currentSeedersAmount):
+                seeder = heapq.heappop(availableSeeders)
+                print(f'File {fileHash} should be distributed to seeder {seeder.address}', flush=True)
+
     def timeoutProcedure(self):
-        print('Timeout procedure', flush=True)
         self.seedersConnectivityCheck()
+        self.seedersFileBalancing()
 
     def pingHandler(self, args):
         res = Response(status=200, message=f'Received message: {args.get("message")}')

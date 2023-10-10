@@ -2,13 +2,7 @@ import zmq
 import pickle
 import os
 import datetime
-from utils import OperationHandler, Operation, Response, TrackerHandler, getIpAddress, OperationRequest, File, hash
-
-TRACKER_OPERATIONS = {
-    'SEEDER_REGISTER': 'SEEDER_REGISTER',
-    'SEEDER_UPDATE': 'SEEDER_UPDATE',
-    'SEEDER_SIGNOUT': 'SEEDER_SIGNOUT',
-}
+from utils import OperationHandler, Operation, Response, TrackerHandler, getIpAddress, OperationRequest, File, hash, TRACKER_OPERATIONS, SEEDER_OPERATIONS, getFileDistributedly
 
 HASH_SIZE = 5
 
@@ -23,7 +17,8 @@ class Seeder:
         self.OPERATIONS = [
             Operation(operation='PING', args=["message"], handler=self.pingHandler),
             Operation(operation='GET', args=["fileHash", "offset", "count"], handler=self.getHandler),
-            Operation(operation='UPLOAD', args=["fileHash", "file", "fileData"], handler=self.uploadHandler)
+            Operation(operation='UPLOAD', args=["fileHash", "file", "fileData"], handler=self.uploadHandler),
+            Operation(operation='REQUEST_UPLOAD', args=["fileHash", "fileName", "size", "seeders"], handler=self.requestUploadHandler),
         ]
 
         self.diskDirectory = '/disk'
@@ -132,9 +127,6 @@ class Seeder:
         file.lastModified = datetime.datetime.now().strftime('%H:%M')
 
         self.localFiles[fileHash] = file
-        
-        res = Response(status=200, message=f'File uploaded')
-        self.opHandler.send(res.export())
 
         # Update seeder on the Tracker
         req = OperationRequest(operation=TRACKER_OPERATIONS['SEEDER_UPDATE'], args={"address": getIpAddress(), "files": self.localFiles})
@@ -145,7 +137,44 @@ class Seeder:
 
         # There is no much to doo actually. Could raise an error though
         if res.status != 200:
+            os.remove(os.path.join(self.diskDirectory, file.name))
+            
+            del self.localFiles[fileHash]
+
+            res = Response(status=400, message=f'File not uploaded')
+            self.opHandler.send(res.export())
             return
+        
+        res = Response(status=200, message=f'File uploaded')
+        self.opHandler.send(res.export())
+
+    def requestUploadHandler(self, args):
+        fileHash = args.get('fileHash')
+        fileName = args.get('fileName')
+        size = args.get('size')
+        seeders = args.get('seeders')
+
+        if type(fileHash) != str or len(fileHash) != 5 or type(fileName) != str or type(size) != int or type(seeders) != list:
+            res = Response(status=400, message=f'Invalid file hash, file name, size or seeders')
+            self.opHandler.send(res.export())
+            return
+        
+        if fileHash in self.localFiles:
+            res = Response(status=200, message=f'File already exists')
+            self.opHandler.send(res.export())
+            return
+        
+        fileInformation = {
+            'fileHash': fileHash,
+            'fileName': fileName,
+            'size': size,
+            'seeders': seeders
+        }
+        
+        getFileDistributedly(self.context, fileInformation)
+
+        res = Response(status=200, message=f'File downloaded')
+        self.opHandler.send(res.export())
 
 
 

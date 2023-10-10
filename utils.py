@@ -4,19 +4,25 @@ import netifaces
 import json
 import hashlib
 import datetime
+import os
+import math
 
-def getIpAddress():
-    """
-    Simple function to retrieve the "main" interface of a machine.
-    This is used to index the Storage Nodes in the Metadata Server
-    """
-    interfaces = netifaces.interfaces()
-    for interface in interfaces:
-        if interface == "lo":
-            continue
-        addrs = netifaces.ifaddresses(interface)
-        if netifaces.AF_INET in addrs:
-            return addrs[netifaces.AF_INET][0]["addr"]
+TRACKER_OPERATIONS = {
+    'PING': 'PING',
+    'LIST': 'LIST',
+    'GET': 'GET',
+    'UPLOAD': 'UPLOAD',
+    'SEEDER_REGISTER': 'SEEDER_REGISTER',
+    'SEEDER_UPDATE': 'SEEDER_UPDATE',
+    'SEEDER_SIGNOUT': 'SEEDER_SIGNOUT',
+}
+
+SEEDER_OPERATIONS = {
+    'PING': 'PING',
+    'GET': 'GET',
+    'UPLOAD': 'UPLOAD',
+    'REQUEST_UPLOAD': 'REQUEST_UPLOAD',
+}
 
 class File:
     def __init__(self, name, size, lastModified):
@@ -155,7 +161,20 @@ class SeederHandler:
     
     def recv(self):
         return self.sock.recv()
-    
+
+def getIpAddress():
+    """
+    Simple function to retrieve the "main" interface of a machine.
+    This is used to index the Storage Nodes in the Metadata Server
+    """
+    interfaces = netifaces.interfaces()
+    for interface in interfaces:
+        if interface == "lo":
+            continue
+        addrs = netifaces.ifaddresses(interface)
+        if netifaces.AF_INET in addrs:
+            return addrs[netifaces.AF_INET][0]["addr"]
+
 # Calculate that hash from a file path "fpath"
 def hash(fpath):
     hasher = hashlib.md5()
@@ -165,3 +184,67 @@ def hash(fpath):
 
     file_hash = hasher.hexdigest()
     return file_hash
+
+def getOutputFilename(proposedFilename):
+    if not os.path.exists(proposedFilename):
+        return proposedFilename
+
+    filename, extension = os.path.splitext(proposedFilename)
+
+    i = 1
+    while True:
+        filename = f"{filename}({i})"
+        if not os.path.exists(filename + extension):
+            return filename + extension
+        i += 1
+
+# fileInformation = {'fileHash', 'fileName', 'size', 'seeders'}
+def getFileDistributedly(context, fileInformation):
+    
+    # Download the file distributedly between all the seeders that contain it
+    chunkSize = 4096
+
+    chunkCountTotal = fileInformation['size'] / chunkSize
+
+    chunkCountPerSeeder = int(chunkCountTotal // len(fileInformation['seeders']))
+
+    seederRequestInformation = [{
+        "seeder": seeder,
+        "offset": None,
+        "count": chunkCountPerSeeder * chunkSize
+    } for seeder in fileInformation['seeders']]
+
+
+    for i in range(math.ceil(chunkCountTotal % len(fileInformation['seeders']))):
+        seederRequestInformation[len(fileInformation['seeders']) - i - 1]['count'] += chunkSize
+
+    # Update the offset
+    offset = 0
+    for seeder in seederRequestInformation:
+        seeder['offset'] = offset
+        offset += seeder['count']
+
+    proposedFilename = fileInformation['fileName']
+    outputFilename = getOutputFilename(proposedFilename)
+
+    # Send the requests to the seeders
+    for seeder in seederRequestInformation:
+        seederHandler = SeederHandler(context, seeder['seeder'])
+        req = OperationRequest(operation=SEEDER_OPERATIONS['GET'], args={"fileHash": fileInformation['fileHash'], "offset": seeder['offset'], "count": seeder['count']})
+        seederHandler.send(req.export())
+
+        res = seederHandler.recv()
+        res = Response(**pickle.loads(res))
+
+        if res.status != 200:
+            print(res.message)
+            return
+
+        data = res.message["data"]
+        count = res.message["count"]
+        
+        with open(outputFilename, 'ab') as f:
+            f.write(data)
+            f.close()
+
+    return outputFilename

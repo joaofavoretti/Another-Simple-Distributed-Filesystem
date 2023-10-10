@@ -5,19 +5,8 @@ import math
 import os
 import json
 import signal
-from utils import OperationRequest, Response, TrackerHandler, SeederHandler, hash, File
-
-TRACKER_OPERATIONS = {
-    'PING': 'PING',
-    'LIST': 'LIST',
-    'GET': 'GET',
-    'UPLOAD': 'UPLOAD'
-}
-
-SEEDER_OPERATIONS = {
-    'GET': 'GET',
-    'UPLOAD': 'UPLOAD'
-}
+import heapq
+from utils import OperationRequest, Response, TrackerHandler, SeederHandler, hash, File, TRACKER_OPERATIONS, SEEDER_OPERATIONS, getFileDistributedly
 
 class EmptyException(Exception):
     pass
@@ -151,25 +140,17 @@ class Client:
 
         longListing = True if match and match.group(1) else False
 
-        files = {}
-
-        for root, dirs, filenames in os.walk('.'):
-            for filename in filenames:
-                filePath = os.path.join(root, filename)
-                fileHash = hash(filePath)[:5]
-                fileSize = os.path.getsize(filePath)
-                fileLastModified = os.path.getmtime(filePath)
-
-                file = File(name=filename, size=fileSize, lastModified=fileLastModified)
-
-                files[fileHash] = file
+        files = []
+        for filename in os.listdir('.'):
+            if os.path.isfile(filename):
+                heapq.heappush(files, (filename, File(name=filename, size=os.path.getsize(filename), lastModified=os.path.getmtime(filename))))
 
         if longListing:
-            for fileHash, file in files.items():
-                print(f"{file.size}\t{file.lastModified}\t{fileHash} {file.name}")
+            for _, file in files:
+                print(f"{file.size}\t{file.lastModified}\t{hash(file.name)[:5]} {file.name}")
         else:
-            for fileHash, file in files.items():
-                print(f"({fileHash}) {file.name} \t")
+            for _, file in files:
+                print(f"({hash(file.name)[:5]}) {file.name} \t")
 
     def getHandler(self, commandString, commandRegex):
         match = re.search(commandRegex, commandString)
@@ -184,56 +165,9 @@ class Client:
         if res.status != 200:
             print(res.message)
 
-        # fileInformation = {'fileHash', 'fileName', 'size', 'seeders'}
         fileInformation = res.message
 
-        # Download the file distributedly between all the seeders that contain it
-        chunkSize = 4096
-
-        chunkCountTotal = fileInformation['size'] / chunkSize
-
-        chunkCountPerSeeder = int(chunkCountTotal // len(fileInformation['seeders']))
-
-        seederRequestInformation = [{
-            "seeder": seeder,
-            "offset": None,
-            "count": chunkCountPerSeeder * chunkSize
-        } for seeder in fileInformation['seeders']]
-
-
-        for i in range(math.ceil(chunkCountTotal % len(fileInformation['seeders']))):
-            seederRequestInformation[len(fileInformation['seeders']) - i - 1]['count'] += chunkSize
-
-        # Update the offset
-        offset = 0
-        for seeder in seederRequestInformation:
-            seeder['offset'] = offset
-            offset += seeder['count']
-
-        outputFilename = f'{fileHash}-{fileInformation["fileName"]}'
-
-        if os.path.exists(outputFilename):
-            os.remove(outputFilename)
-
-        # Send the requests to the seeders
-        for seeder in seederRequestInformation:
-            seederHandler = SeederHandler(self.context, seeder['seeder'])
-            req = OperationRequest(operation=SEEDER_OPERATIONS['GET'], args={"fileHash": fileHash, "offset": seeder['offset'], "count": seeder['count']})
-            seederHandler.send(req.export())
-
-            res = seederHandler.recv()
-            res = Response(**pickle.loads(res))
-
-            if res.status != 200:
-                print(res.message)
-                return
-
-            data = res.message["data"]
-            count = res.message["count"]
-            
-            with open(outputFilename, 'ab') as f:
-                f.write(data)
-                f.close()
+        outputFilename = getFileDistributedly(self.context, fileInformation)
 
         print(f"Downloaded file {outputFilename}")
 
