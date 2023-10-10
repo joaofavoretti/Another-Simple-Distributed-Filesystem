@@ -193,9 +193,9 @@ def getOutputFilename(proposedFilename):
 
     i = 1
     while True:
-        filename = f"{filename}({i})"
-        if not os.path.exists(filename + extension):
-            return filename + extension
+        outputFilename = f"{filename}({i})"
+        if not os.path.exists(outputFilename + extension):
+            return outputFilename + extension
         i += 1
 
 # fileInformation = {'fileHash', 'fileName', 'size', 'seeders'}

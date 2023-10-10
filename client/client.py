@@ -47,7 +47,7 @@ class CommandHandler:
                 continue
             except Exception as e:
                 commandLabel = e.args[0]
-                print(f'Command not found: {commandLabel}')
+                print(f'Incorrect parsing: {commandLabel}')
 
 class Command:
     def __init__(self, label, regexes, description, handler):
