@@ -72,7 +72,7 @@ class OperationHandler:
 
         self.sock = self.context.socket(zmq.REP)
         self.sock.bind(f"tcp://{getIpAddress()}:5555")
-        # self.sock.setsockopt(zmq.RCVTIMEO, 5000)
+        self.sock.setsockopt(zmq.RCVTIMEO, 5000)
 
     def send(self, payload):
         return self.sock.send(payload)
@@ -131,6 +131,9 @@ class TrackerHandler:
         self.sock = self.context.socket(zmq.REQ)
         self.sock.connect(f"tcp://11.56.1.21:5555")
 
+    def setsockopt(self, opt, value):
+        return self.sock.setsockopt(opt, value)
+
     def send(self, payload):
         return self.sock.send(payload)
     
@@ -143,6 +146,9 @@ class SeederHandler:
 
         self.sock = self.context.socket(zmq.REQ)
         self.sock.connect(f"tcp://{address}:5555")
+
+    def setsockopt(self, opt, value):
+        return self.sock.setsockopt(opt, value)
 
     def send(self, payload):
         return self.sock.send(payload)

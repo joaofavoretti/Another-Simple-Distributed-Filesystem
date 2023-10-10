@@ -85,8 +85,10 @@ class Client:
             Command(label=["exit", "e"], regexes=[r"^exit$", r"^e$"], description="Exit the client", handler=self.exitHandler),
             Command(label=["ping"], regexes=[r"^ping$"], description="Ping the Tracker", handler=self.pingHandler),
             Command(label=["list [-l]", "ls [-l]"], regexes=[r"^list(\s+-l)?$", r"^ls(\s+-l)?$"], description="List all files in the filesystem", handler=self.listHandler),
-            Command(label=["get <filehash>"], regexes=[r"^get\s+([a-f0-9]{5})$"], description="Download a file", handler=self.getHandler),
-            Command(label=["upload <filePath>"], regexes=[r"^upload\s+(\.?(/?[a-zA-Z0-9\-_]+)+(\.[a-zA-Z0-9]+)?)$"], description="Upload a file", handler=self.uploadHandler)
+            Command(label=["get <fileHash>"], regexes=[r"^get\s+([a-f0-9]{5})$"], description="Download a file", handler=self.getHandler),
+            Command(label=["upload <filePath>"], regexes=[r"^upload\s+(\.?(/?[a-zA-Z0-9\-_]+)+(\.[a-zA-Z0-9]+)?)$"], description="Upload a file", handler=self.uploadHandler),
+            Command(label=["clear"], regexes=[r"^clear$"], description="Clear the screen", handler=self.clearHandler),
+            Command(label=["list-local [-l]", "ll [-l]"], regexes=[r"^list-local(\s+-l)?$", r"^ll(\s+-l)?$"], description="List files in the local filesystem", handler=self.listLocalHandler),
         ]
 
     def run(self):
@@ -99,8 +101,11 @@ class Client:
     def helpHandler(self, commandString, commandRegex):
         print("Help message")
         print("Commands:")
+
+        max_label_length = max([len(", ".join(commandObject.label)) for commandObject in self.COMMANDS])
+
         for commandObject in self.COMMANDS:
-            print(f"{commandObject.label}:\t\t{commandObject.description}")
+            print(f"\t{', '.join(commandObject.label).ljust(max_label_length)}\t{commandObject.description}")
 
     def exitHandler(self, commandString, commandRegex):
         print("Exiting...")
@@ -113,6 +118,9 @@ class Client:
         res = Response(**pickle.loads(res))
         if res.status == 200:
             print(res.message)
+
+    def clearHandler(self, commandString, commandRegex):
+        os.system('clear')
 
     def listHandler(self, commandString, commandRegex):
         # Using the re match to check if the -l flag is present
@@ -135,6 +143,32 @@ class Client:
                 print(f"{file.size}\t{file.lastModified}\t{fileHash} {file.name}")
         else:
             for fileHash, file in res.message.items():
+                print(f"({fileHash}) {file.name} \t")
+
+    def listLocalHandler(self, commandString, commandRegex):
+        # Using the re match to check if the -l flag is present
+        match = re.search(commandRegex, commandString)
+
+        longListing = True if match and match.group(1) else False
+
+        files = {}
+
+        for root, dirs, filenames in os.walk('.'):
+            for filename in filenames:
+                filePath = os.path.join(root, filename)
+                fileHash = hash(filePath)[:5]
+                fileSize = os.path.getsize(filePath)
+                fileLastModified = os.path.getmtime(filePath)
+
+                file = File(name=filename, size=fileSize, lastModified=fileLastModified)
+
+                files[fileHash] = file
+
+        if longListing:
+            for fileHash, file in files.items():
+                print(f"{file.size}\t{file.lastModified}\t{fileHash} {file.name}")
+        else:
+            for fileHash, file in files.items():
                 print(f"({fileHash}) {file.name} \t")
 
     def getHandler(self, commandString, commandRegex):
@@ -246,12 +280,13 @@ class Client:
         
         print(f"Uploaded file {filePath}")
 
-def disable_interruption(signal, frame):
+def ctrl_c_handler(signal, frame):
     print()
     raise EmptyException('Empty command string')
 
 def main():
-    signal.signal(signal.SIGINT, disable_interruption)
+    # Handle CTRL+C
+    signal.signal(signal.SIGINT, ctrl_c_handler)
 
     client = Client()
     

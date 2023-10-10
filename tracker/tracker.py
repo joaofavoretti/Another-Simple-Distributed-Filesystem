@@ -53,6 +53,8 @@ class Tracker:
     def seedersConnectivityCheck(self):
         for seeder in self.seeders:
             seederHandler = SeederHandler(self.context, seeder.address)
+            seederHandler.setsockopt(zmq.RCVTIMEO, 3000)
+
             req = OperationRequest(operation='PING', args={"message": "Just a ping message"})
             seederHandler.send(req.export())
 
@@ -61,9 +63,11 @@ class Tracker:
                 res = Response(**pickle.loads(res))
             except zmq.error.Again:
                 self.seeders.remove(seeder)
+                print(f'Seeder {seeder.address} timed out', flush=True)
                 continue
 
     def timeoutProcedure(self):
+        print('Timeout procedure', flush=True)
         self.seedersConnectivityCheck()
 
     def pingHandler(self, args):
