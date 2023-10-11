@@ -4,12 +4,12 @@ import pickle
 import os
 import signal
 import heapq
+import readline
+import random
 from utils import OperationRequest, Response, TrackerHandler, SeederHandler, hash, File, TRACKER_OPERATIONS, SEEDER_OPERATIONS, getFileDistributedly
 
 class EmptyException(Exception):
     pass
-
-
 
 class CommandRequestHandler:
     def __init__(self, object, string):
@@ -18,9 +18,6 @@ class CommandRequestHandler:
 
 class CommandHandler:
     PROMPT_STYLE = '\033[1;32m$ \033[0m'
-
-    def __init__(self):
-        pass
 
     def parseCommand(self, commandString, clientCommands):
         if not commandString:
@@ -76,6 +73,7 @@ class Client:
             Command(label=["upload <filePath>"], regexes=[r"^upload\s+(\.?(/?[a-zA-Z0-9\-_]+)+(\.[a-zA-Z0-9]+)?)$"], description="Upload a file", handler=self.uploadHandler),
             Command(label=["clear"], regexes=[r"^clear$"], description="Clear the screen", handler=self.clearHandler),
             Command(label=["list-local [-l]", "ll [-l]"], regexes=[r"^list-local(\s+-l)?$", r"^ll(\s+-l)?$"], description="List files in the local filesystem", handler=self.listLocalHandler),
+            Command(label=["preview [--hex] <fileHash>", "pv [--hex] <fileHash>"], regexes=[r"^preview(\s+--hex)?\s+([a-f0-9]{5})$", r"^pv(\s+--hex)?\s+([a-f0-9]{5})$"], description="Preview a file", handler=self.previewHandler),
         ]
 
     def run(self):
@@ -212,6 +210,74 @@ class Client:
             return
         
         print(f"Uploaded file {filePath}")
+
+    def previewHandler(self, commandString, commandRegex):
+        match = re.search(commandRegex, commandString)
+        hexPreview = True if match and match.group(1) else False
+        fileHash = match.group(2)
+
+        req = OperationRequest(operation=TRACKER_OPERATIONS['GET'], args={"fileHash": fileHash})
+        self.trackerHandler.send(req.export())
+
+        res = self.trackerHandler.recv()
+        res = Response(**pickle.loads(res))
+
+        if res.status != 200:
+            print(res.message)
+            return
+
+        # fileInformation = {'fileHash', 'fileName', 'size', 'seeders'}
+        fileInformation = res.message
+        fileHash = fileInformation['fileHash']
+        fileName = fileInformation['fileName']
+        fileSize = fileInformation['size']
+        seeder = random.choice(fileInformation['seeders'])
+
+        seederHandler = SeederHandler(self.context, seeder)
+        req = OperationRequest(operation=SEEDER_OPERATIONS['GET'], args={"fileHash": fileHash, "offset": 0, "count": 256})
+        seederHandler.send(req.export())
+
+        res = seederHandler.recv()
+        res = Response(**pickle.loads(res))
+
+        if res.status != 200:
+            print(res.message)
+            return
+        
+        fileData = res.message['data']
+
+        if hexPreview:
+            print(f"Preview of {fileName} ({fileHash})")
+            printHex(fileData)
+        else:
+            print(f"Preview of {fileName} ({fileHash})")
+            try:
+                print(fileData.decode())
+            except:
+                print("Unable to decode file")
+                printHex(fileData)
+
+#
+# Print Hexdump of data
+#
+def printHex(data):
+    hexdump = ''
+    ascii_dump = ''
+    for i in range(len(data)):
+        if i % 16 == 0:
+            hexdump += f"{i:08x}  "
+        hexdump += f"{data[i]:02x} "
+        ascii_dump += chr(data[i]) if 32 <= data[i] <= 126 else '.'
+        if i % 16 == 7:
+            hexdump += " "
+        if i % 16 == 15:
+            hexdump += f" |{ascii_dump}|\n"
+            ascii_dump = ''
+    if len(data) % 16 != 0:
+        hexdump += f"{' '*(16-len(data)%16)*3}"
+        ascii_dump += '.'*(16-len(data)%16)
+        hexdump += f" |{ascii_dump}|\n"
+    print(hexdump)
 
 def ctrl_c_handler(signal, frame):
     print()

@@ -126,7 +126,7 @@ class OperationHandler:
                 res = Response(status=500, message=e.args[0])
                 self.send(res.export())
 
-            print(f"Operation: {operationReqHandler.object.operation}\nArgs: {operationReqHandler.args}", flush=True)
+            print(f"{operationReqHandler.object.operation}: {operationReqHandler.args}", flush=True)
 
             return operationReqHandler
         
