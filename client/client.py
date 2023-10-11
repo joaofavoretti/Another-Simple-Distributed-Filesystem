@@ -89,7 +89,10 @@ class Client:
 
         max_label_length = max([len(", ".join(commandObject.label)) for commandObject in self.COMMANDS])
 
-        for commandObject in self.COMMANDS:
+        # Order the commands by label
+        commands = sorted(self.COMMANDS, key=lambda commandObject: commandObject.label[0].lower())
+
+        for commandObject in commands:
             print(f"\t{', '.join(commandObject.label).ljust(max_label_length)}\t{commandObject.description}")
 
     def exitHandler(self, commandString, commandRegex):

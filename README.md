@@ -4,11 +4,15 @@
 
 This is project aimed to developed an infrastructure to host a distributed File-System. The idea is to provide redundancies and speed on the upload or download of files stores in the remote servers. Besides that, even though the system was thought to run on separate computers, I also created a client CLI application able to communicate with the created protocols to provide the well-known feeling of a "Single Cloud Server". 
 
-![Logo](assets/logo-1.png)
+![A non-copyrighted AI generated logo for the project](assets/logo-1.png)
 
 ## Name suggestions
 - Overly Friendly File System Sincerely that Honors Every Request Effortlessly (OFFSHORE).
 - Our Filing Framework Seems Highly Optimistic, Rarely Encounters Glitches
+
+## Preview
+
+![Running Demo](assets/demo.gif)
 
 ## Running
 
@@ -30,9 +34,7 @@ run.sh
 
 You will be prompted with a `$` character supposed to be used as a prompt to your file system, just like you would with you were to use a linux terminal. You can be very free to use it, do not be scared of typing some undefined command and crashing the applications. It has built-in sintax error checking, so the only way to exit it is by typing `exit`.
 
-One thing though is that it does not have a Command History features (yes, I am aware that it ruins the experience), but I am working on it.
-
-Besides that, you can access the main supported features by running the command `help`. But it is too much to ask, there are some functionalities already implemented.
+You can access the main supported features by running the command `help`. But it is too much to ask, there are some functionalities already implemented.
 
 - Upload files
 - Download files
@@ -47,5 +49,21 @@ docker-compose down
 
 Be smart, you can just `CTRL+C` your docker compose window and run it again. You will only need that command (As far as I am aware) if you want to take down the network interface created to host the group of containers.
 
+## Architecture (BASICS)
 
-![Video](assets/OFFSHORE.gif)
+Some basic information of how the system works. The project has 3 main modules: a **Tracker**, a **Seeder** and the **Client**. The remote filesystem is composed just by the Tracker and the Seeder while the Client applications is just a way of interacting with its protocols.
+
+### Tracker
+
+That module is reponsible to make sure what are the Seeders that are connected to the network, what files are availble for anyone to request and balance the files between the seeders in case one's connection might fail
+
+### Seeder
+
+That module is responsible for storing and uploading the files for anyone that may want it. It joins the network by first registering itself in the Tracker
+
+### Client
+
+As I said before, it is just a client application to replicate the linux terminal experience for anyone to interact with a working filesystem. All its configuration are binded to the docker environment used to test the whole thing in a single computer. It means that some configuration files and updates might be required to run it in a production environment (sure...).
+
+
+![A nice AI generated GIF](assets/OFFSHORE.gif)
