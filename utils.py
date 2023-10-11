@@ -1,9 +1,8 @@
 import zmq
 import pickle
 import netifaces
-import json
 import hashlib
-import datetime
+from datetime import datetime
 import os
 import math
 
@@ -21,14 +20,23 @@ SEEDER_OPERATIONS = {
     'PING': 'PING',
     'GET': 'GET',
     'UPLOAD': 'UPLOAD',
-    'REQUEST_UPLOAD': 'REQUEST_UPLOAD',
+    'REQUEST_GET': 'REQUEST_GET',
 }
 
 class File:
     def __init__(self, name, size, lastModified):
         self.name = name
         self.size = size
-        self.lastModified = datetime.datetime.fromtimestamp(lastModified).strftime('%H:%M')
+        self.lastModified = datetime.fromtimestamp(lastModified).strftime('%H:%M')
+
+    def setName(self, name):
+        self.name = name
+
+    def setSize(self, size):
+        self.size = size
+
+    def setLastModified(self, lastModified):
+        self.lastModified = datetime.fromtimestamp(lastModified).strftime('%H:%M')
 
 class Response:
 
@@ -118,6 +126,8 @@ class OperationHandler:
                 res = Response(status=500, message=e.args[0])
                 self.send(res.export())
 
+            print(f"Operation: {operationReqHandler.object.operation}\nArgs: {operationReqHandler.args}", flush=True)
+
             return operationReqHandler
         
 class Operation:
@@ -185,21 +195,21 @@ def hash(fpath):
     file_hash = hasher.hexdigest()
     return file_hash
 
-def getOutputFilename(proposedFilename):
-    if not os.path.exists(proposedFilename):
-        return proposedFilename
+def getOutputFilepath(proposedFilename, outputDirectory):
+    if not os.path.exists(os.path.join(outputDirectory, proposedFilename)):
+        return os.path.join(outputDirectory, proposedFilename)
 
     filename, extension = os.path.splitext(proposedFilename)
 
     i = 1
     while True:
         outputFilename = f"{filename}({i})"
-        if not os.path.exists(outputFilename + extension):
-            return outputFilename + extension
+        if not os.path.exists(os.path.join(outputDirectory, outputFilename + extension)):
+            return os.path.join(outputDirectory, outputFilename + extension)
         i += 1
 
 # fileInformation = {'fileHash', 'fileName', 'size', 'seeders'}
-def getFileDistributedly(context, fileInformation):
+def getFileDistributedly(context, fileInformation, outputDirectory='./'):
     
     # Download the file distributedly between all the seeders that contain it
     chunkSize = 4096
@@ -225,7 +235,7 @@ def getFileDistributedly(context, fileInformation):
         offset += seeder['count']
 
     proposedFilename = fileInformation['fileName']
-    outputFilename = getOutputFilename(proposedFilename)
+    outputFilepath = getOutputFilepath(proposedFilename, outputDirectory)
 
     # Send the requests to the seeders
     for seeder in seederRequestInformation:
@@ -243,8 +253,8 @@ def getFileDistributedly(context, fileInformation):
         data = res.message["data"]
         count = res.message["count"]
         
-        with open(outputFilename, 'ab') as f:
+        with open(outputFilepath, 'ab') as f:
             f.write(data)
             f.close()
 
-    return outputFilename
+    return outputFilepath

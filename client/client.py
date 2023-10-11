@@ -1,9 +1,7 @@
 import zmq
 import re
 import pickle
-import math
 import os
-import json
 import signal
 import heapq
 from utils import OperationRequest, Response, TrackerHandler, SeederHandler, hash, File, TRACKER_OPERATIONS, SEEDER_OPERATIONS, getFileDistributedly
@@ -164,6 +162,7 @@ class Client:
 
         if res.status != 200:
             print(res.message)
+            return
 
         fileInformation = res.message
 

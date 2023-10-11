@@ -1,7 +1,7 @@
 import zmq
 import pickle
 import os
-import datetime
+from datetime import datetime
 from utils import OperationHandler, Operation, Response, TrackerHandler, getIpAddress, OperationRequest, File, hash, TRACKER_OPERATIONS, SEEDER_OPERATIONS, getFileDistributedly
 
 HASH_SIZE = 5
@@ -18,7 +18,7 @@ class Seeder:
             Operation(operation='PING', args=["message"], handler=self.pingHandler),
             Operation(operation='GET', args=["fileHash", "offset", "count"], handler=self.getHandler),
             Operation(operation='UPLOAD', args=["fileHash", "file", "fileData"], handler=self.uploadHandler),
-            Operation(operation='REQUEST_UPLOAD', args=["fileHash", "fileName", "size", "seeders"], handler=self.requestUploadHandler),
+            Operation(operation='REQUEST_GET', args=["fileHash", "fileName", "size", "seeders"], handler=self.requestGetHandler),
         ]
 
         self.diskDirectory = '/disk'
@@ -124,7 +124,7 @@ class Seeder:
             f.write(fileData)
             f.close()
 
-        file.lastModified = datetime.datetime.now().strftime('%H:%M')
+        file.setLastModified(datetime.now().timestamp())
 
         self.localFiles[fileHash] = file
 
@@ -148,7 +148,7 @@ class Seeder:
         res = Response(status=200, message=f'File uploaded')
         self.opHandler.send(res.export())
 
-    def requestUploadHandler(self, args):
+    def requestGetHandler(self, args):
         fileHash = args.get('fileHash')
         fileName = args.get('fileName')
         size = args.get('size')
@@ -171,7 +171,13 @@ class Seeder:
             'seeders': seeders
         }
         
-        getFileDistributedly(self.context, fileInformation)
+        getFileDistributedly(self.context, fileInformation, outputDirectory=self.diskDirectory)
+
+        self.localFiles[fileHash] = File(name=fileName, size=size, lastModified=datetime.now().timestamp())
+
+        # ...
+        # Is there a way to call the tracker SEEDER_UPDATE operation without dead-locking the tracker?
+        # I guess not. So update the files manually inside the Tracker
 
         res = Response(status=200, message=f'File downloaded')
         self.opHandler.send(res.export())
